@@ -43,21 +43,6 @@
     #status { margin-top: 15px; font-size: 16px; font-weight: bold; color: #007bff; }
     #error { margin-top: 15px; font-size: 16px; font-weight: bold; color: red; }
 
-    /* Spinner */
-    .spinner {
-      display: inline-block;
-      width: 18px;
-      height: 18px;
-      border: 3px solid #007bff;
-      border-top: 3px solid transparent;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
-    }
   </style>
 </head>
 <body>
@@ -131,7 +116,7 @@
 
     // Handle Play button
     playBtn.addEventListener("click", () => {
-      statusEl.innerHTML = "⏳ Please wait a moment... <span class='spinner'></span>";
+      statusEl.innerHTML = "⏳ Please wait a moment... ";
       errorEl.textContent = "";
 
       if (navigator.geolocation) {
